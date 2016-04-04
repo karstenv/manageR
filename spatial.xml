@@ -1,0 +1,369 @@
+<?xml version="1.0"?>
+<manageRTools category="Spatial">
+    <RTool name="Load OGR data" subcategory= "Import/Export">
+        <Query><![CDATA[require(rgdal)
+|2| <- local({
+    readOGR('|1|', '|2|', verbose = TRUE, p4s=NULL, drop_unsupported_fields=FALSE,
+    input_field_name_encoding=NULL, pointDropZ=FALSE, dropNULLGeometries=TRUE)
+})]]></Query>
+        <Help name="readOGR"/>
+        <Dialog>
+            <Widget id="1" label="Input data source" type="FileOpenLineEdit"/>
+            <Widget id="2" label="Layer name" type="LineEdit" default="layer"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Write OGR data" subcategory= "Import/Export">
+        <Query><![CDATA[require(rgdal)
+local({
+    writeOGR(|1|, '|2|', |3|, |4|, dataset_options=NULL, layer_options=NULL, verbose=TRUE)
+})]]></Query>
+        <Help name="writeOGR"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox"/>
+            <Widget id="2" label="Output path:" type="FileSaveLineEdit"/>
+            <Widget id="3" label="Output layer name:" type="LineEdit" default="layer"/>
+            <Widget id="4" label="Driver name:" type="ComboBox" default="ESRI Shapefile;GML;KML;MapInfo File;CSV;PostgreSQL;SQLite;ODBC;MySQL;GPX;GMT;GeoJSON"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Load GDAL data" subcategory= "Import/Export">
+        <Query><![CDATA[require(rgdal)
+|2| <- local({
+    readGDAL('|1|')
+})]]></Query>
+        <Help name="readGDAL"/>
+        <Dialog>
+            <Widget id="1" label="Input data source:" type="FileOpenLineEdit"/>
+            <Widget id="2" label="Layer name" type="LineEdit" default="layer"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Write GDAL data" subcategory= "Import/Export">
+        <Query><![CDATA[require(rgdal)
+local({
+    writeGDAL(|1|, '|2|', drivername='|3|', type='Float32', mvFlag=|4|, copy_drivername='|3|')
+})]]></Query>
+        <Help name="writeGDAL"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox"/>
+            <Widget id="2" label="Output file name:" type="FileSaveLineEdit"/>
+            <Widget id="3" label="Driver name:" type="ComboBox" default="GTiff;VRT;PNG;JPEG;EHdr;ENVI"/>
+            <Widget id="4" label="Missing value flag:" type="LineEdit" default="NA"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Voronoi polygons" subcategory= "Geometry">
+        <Query><![CDATA[require(deldir)
+|2| <- local({
+    rds <- |1|@coords
+    z <- deldir(crds[,1], crds[,2])
+    w <- tile.list(z)
+    polys <- vector(mode='list', length=length(w))
+    require(sp)
+    for (i in seq(along=polys)) {
+        pcrds <- cbind(w[[i]]$x, w[[i]]$y)
+        pcrds <- rbind(pcrds, pcrds[1,])
+        polys[[i]] <- Polygons(list(Polygon(pcrds)), ID=as.character(i))
+    }
+    SP <- SpatialPolygons(polys)
+    areas <- sapply(slot(SP, 'polygons'), function(x) sapply(slot(x,'Polygons'), slot, 'area'))
+    SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1], y=crds[,2], row.names=sapply(slot(SP, 'polygons'), function(x) slot(x, 'ID')), area=areas))
+})]]></Query>
+        <Help name="deldir"/>
+        <Dialog>
+            <Widget id="1" label="Point layer:" type="VariableComboBox"/>
+            <Widget id="2" label="Output layer:" type="LineEdit" default="voronoi"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Polygon centroids"  subcategory= "Geometry">
+        <Query><![CDATA[|2| <- local({
+    proj <- proj4string(|1|)
+    coords <- coordinates(|1|)
+    attrs <- |1|@data
+    SpatialPointsDataFrame(coords=coords, data=attrs, proj4string=CRS(proj))
+})]]></Query>
+        <Help name="coordinates"/>
+        <Dialog>
+            <Widget id="1" label="Polygon layer:" type="VariableComboBox"/>
+            <Widget id="2" label="Output layer:" type="LineEdit" default="centroids"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Create spatial weights">
+        <Query><![CDATA[require(spdep)
+|7| <- local({
+    input <- |1|
+    type <- '|2|'
+    value <- |3|
+    style <- '|6|'
+    if ('|4|'=='binary') decay <- 1
+    else decay <- |5| # Adjust distance decay parameter
+    if (type=='contiguity') {
+        weights <- poly2nb(pl=input, snap=0.0005, queen=T) # Better parameter for snap?
+        if (value >= 2) {
+            nblags <- nblag(neighbours=weights, maxlag=value)
+            weights <- nblag.cumul(nblags=nblags)
+         }
+    } else {
+        ids <- seq(1,dim(input@data)[1])
+        proj4 <- proj4string(input)
+        coords <- coordinates(obj=input)
+        points <- SpatialPoints(coords=coords, proj4string=CRS(proj4))
+        if (type=='distance') {
+            dist <- dnearneigh(x=points, d1=0, d2=value, row.names=ids)
+        } else { # 'knearest'
+            knear <- knearneigh(x=points, k=value)
+            dist <- knn2nb(knn=knear, row.names=ids, sym=FALSE)
+        }
+        dlist <- nbdists(nb=dist, coords=points)
+        decayfun <- function(x) 1/(x^decay)
+        idlist <- lapply(X=dlist, FUN=decayfun)
+        weights <- nb2listw(neighbours=dist, glist=idlist, style=style, zero.policy=T)
+    }
+})]]></Query>
+        <Help name="nb2listw"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="7" label="Output name:" type="LineEdit" default="weights"/>
+            <Group name="Spatial neighbourhood">
+                <Widget id="2" label="Spatial neighbourhood type:" type="ComboBox" default="distance;knearest;contiguity" alternate=
+                    "Distance based;K Nearest neighbours;Polygon contiguity"/>
+                <Widget id="3" label="Distance or K neighbours or K lags:" type="DoubleSpinBox" default="1.00"/>
+                <Widget id="5" label="Distance decay:" type="DoubleSpinBox" default="1.00"/>
+            </Group>
+            <Group name="Adjust weights">
+                <Widget id="4" label="Weighting scheme:" type="ComboBox" default="binary;inverse.distance" alternate=
+                    "Binary; Inverse distance"/>
+                <Widget id="6" label="Weighting style:" type="ComboBox" default="W;B;C;U;S" alternate=
+                    "Row standardised;Binary coding;Globally standardised;(Scaled) globally standised;Variance-stabilising"/>
+            </Group>
+        </Dialog>
+    </RTool>
+    <RTool name="Moran scatterplot" subcategory= "Plotting">
+    <Query><![CDATA[require(spdep)
+local({
+    moran.plot(|1|, |2|, zero.policy=FALSE, spChk=FALSE, 
+        quiet=|3|, labels=|3|, |4|)
+})]]></Query>
+        <Help name="moran.plot"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>
+            <Widget id="3" label="Display influential variables" type="CheckBox" default="true"/>
+            <Widget id="4" type="PlotOptionsBox" default="titles;box"/>
+        </Dialog>
+    </RTool>
+
+<RTool name="Moran's I" subcategory= "Statistics">
+    <Query><![CDATA[require(spdep)
+local({
+    moran.test(|1|, |2|, randomisation=ifelse('|3|'=='normality',FALSE,TRUE), 
+        alternative='|4|', rank=|5|)
+})]]></Query>
+    <Help name="moran.test"/>
+    <Dialog>
+        <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+        <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>
+        <Columns>
+            <Widget id="3" label="Variance assumption" type="RadioGroupBox" default="Randomisation;Normality"/>
+            <Widget id="4" label="Alternative hypothesis" type="RadioGroupBox" default="greater;less;two.sided"/>
+        </Columns>
+        <Widget id="5" label="Treat as ranked data" type="CheckBox" default="false"/>
+    </Dialog>
+</RTool>
+<RTool name="Moran's I permutation test" subcategory= "Statistics">
+        <Query><![CDATA[require(spdep)
+|6| <- local({
+    res <- moran.mc(|1|, |2|, nsim=|3|, alternative='|4|')
+})
+if (|5|) # should we plot the results?
+    plot(res)
+if (|7|) # should we output the results?
+    |6|]]></Query>
+        <Help name="moran.mc"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>
+            <Group name="Parameters">
+                <Widget id="3" label="Number of simulations:" type="DoubleSpinBox" default="99" notnull="true"/>
+                <Widget id="4" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="greater;less" alternate="Greater;Less"/>
+            </Group>
+            <Group name="Ouputs">
+                <Widget id="6" label="Output name:" type="LineEdit" default="perm.moran"/>
+                <Columns>
+                    <Widget id="5" label="Display density plot" type="CheckBox" default="false"/>
+                    <Widget id="7" label="Print results" type="CheckBox" default="true"/>
+                </Columns>
+            </Group>
+        </Dialog>
+    </RTool>
+    <RTool name="Geary's c" subcategory= "Statistics">
+        <Query><![CDATA[require(spdep)
+local({
+    geary.test(|1|, |2|, randomisation=|3|, alternative='|4|')
+})]]></Query>
+        <Help name="geary.test"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>
+            <Columns>
+                <Widget id="3" label="Variance assumption" type="RadioGroupBox" 
+                    default="randomisation;normality" alternate="Randomisation;Normality"/>
+                <Widget id="4" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="greater;less" alternate="Greater;Less"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Geary's c permutation test" subcategory= "Statistics">
+        <Query><![CDATA[require(spdep)
+|6| <- local({
+    geary.mc(|1|, |2|, nsim=|3|, alternative='|4|')
+})
+if (|5|) # should we plot it?
+    plot(|6|)
+if (|7|) # should we output the results?
+    |6|]]></Query>
+        <Help name="geary.mc"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>
+            <Group name="Parameters">
+                <Widget id="3" label="Number of simulations:" type="DoubleSpinBox" default="99" notnull="true"/>
+                <Widget id="4" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="greater;less" alternate="Greater;Less"/>
+            </Group>
+            <Group name="Outputs">
+                <Widget id="6" label="Output name:" type="LineEdit" default="perm.geary"/>
+                <Columns>
+                    <Widget id="5" label="Display density plot" type="CheckBox" default="false"/>
+                    <Widget id="7" label="Print results" type="CheckBox" default="true"/>
+                </Columns>
+            </Group>
+        </Dialog>
+    </RTool>
+    <RTool name="Local Gi statistics" subcategory= "Statistics">
+        <Query><![CDATA[require(spdep)
+|4| <- local({
+if (|3|) # should we perform the Gi* test?
+    weights <- nb2listw(include.self(|2|$neighbours),
+        style=|2|$style,glist=lapply(|2|$weights, function(x) c(1,x)))
+else # or the Gi test?
+    weights <- weights
+localG(|1|, weights)
+})
+if (|5|) # should we output the results?
+    |4|]]></Query>
+        <Help name="localG"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>>
+            <Widget id="3" type="RadioGroupBox" label="Test type" 
+                default="true;false" alternate="Gi* Statistic (include self);Gi Statistic"/>
+            <Group name="Outputs">
+                <Widget id="4" label="Output name:" type="LineEdit" default="local.Gi"/>
+                <Widget id="5" label="Print results" type="CheckBox" default="false"/>
+            </Group>
+        </Dialog>
+    </RTool>
+    <RTool name="Local Moran's Ii statistic" subcategory= "Statistics">
+        <Query><![CDATA[require(spdep)
+|5| <- local({
+    localmoran(|1|, |2|, alternative='|3|', p.adjust.method='|4|')
+})
+if (|6|) # should we output the results?
+    |5|]]></Query>
+        <Help name="localmoran"/>
+        <Dialog>
+            <Widget id="1" label="Input layer:" type="VariableComboBox" default="Spatial.*DataFrame"/>
+            <Widget id="2" label="Weights object (listw):" type="VariableComboBox" default="listw"/>>
+            <Group name="Parameters">
+                <Widget id="3" type="RadioGroupBox" label="Alternative hypothesis" 
+                     default="greater;less;two.sided" alternate="Greater;Less;Two sided"/>
+                 <Widget id="4" label="P-value adjustment:" type="ComboBox" 
+                    default="none;bonferroni;holm;hochberg;hommel;fdr"
+                 alternate="No adjustments;Bonferroni correction;Holm (1979);Hochberg (1988);Hommel (1988);Benjamini and Hochberg (1995)"/>
+            </Group>
+            <Group name="Outputs">
+                <Widget id="5" label="Output name:" type="LineEdit" default="local.moran"/>
+                <Widget id="6" label="Print results" type="CheckBox" default="false"/>
+            </Group>
+        </Dialog>
+    </RTool>
+    <RTool name="Polyline profile" subcategory= "Plotting">
+        <Query><![CDATA[# This is the 'polyline profile' tool (version 0.91) contributed by Mayeul Kauffmann
+require(spatstat)
+local({
+# gtools is needed for smoothing by the running() function.
+# If not available or not wanted, replace by identity function.
+gtools.available  <-  library('gtools', logical.return=TRUE)
+if (|6| & gtools.available)
+    running2 <- running
+else
+    running2 <- function(x,...) { x }
+if(|7|)
+    dev.new()
+DEM  <- |3|
+
+if(proj4string(|1|) != proj4string(|3|) ) {
+    print(paste('Polyline and DEM might be in different reference systems. Unpredected behaviour may occur.',
+        'Polyline SRC:',proj4string(|1|),'DEM SRC:', proj4string(|3|) ,sep='   '))
+} #TODO: FIXME by reprojecting polyline into DEM projection
+my.projection <- proj4string(|3|)
+smoothing.window <- 2*round(|5| / 2) # k must be odd below in runmed( ,k=smoothing.window+1), 
+                                     # so smoothing.window must be even
+coord.path <- coordinates(|1|)[[|2|]][[1]]
+path.window <- as.owin(c(min(coord.path[,1]), max(coord.path[,1]), 
+    min(coord.path[,2]), max(coord.path[,2])))
+path.psp <- as.psp(cbind(coord.path[1:(nrow(coord.path)-1),], 
+    coord.path[2:nrow(coord.path),]), window=path.window)
+path.points <- pointsOnLines(path.psp,eps=|4|) # sample elevation every eps meters or degrees 
+path.points.SP <- SpatialPoints(cbind(path.points$x, 
+    path.points$y)[!is.na(path.points$x),], proj4string=CRS(my.projection))
+path.points.elev <- overlay(DEM,path.points.SP)$band1
+elevation.stats <- function(path.points.elev=path.points.elev){
+    deniv <- diff(path.points.elev)
+    # would not requires gtools package
+    # smoothed.deniv <-diff((runmed(path.points.elev, k=smoothing.window+1))) 
+    # much better smoothing but requires gtools
+    smoothed.deniv <- diff(running2(runmed(path.points.elev, 
+        k=smoothing.window+1), width=smoothing.window))
+    cum.pos.deniv <- sum(deniv[deniv>0])
+    cum.neg.deniv <- sum(deniv[deniv<0])
+    smoothed.cum.pos.deniv <- sum(smoothed.deniv[smoothed.deniv>0])
+    smoothed.cum.neg.deniv <- sum(smoothed.deniv[smoothed.deniv<0])  
+    elevation.start <- path.points.elev[1]
+    elevation.end <- path.points.elev[length(path.points.elev)]
+    lowest <- min(path.points.elev)
+    highest <- max(path.points.elev)
+    path.length <- sum(lengths.psp(path.psp))
+    cbind(elevation.start, elevation.end, lowest, highest, 
+        cum.pos.deniv, cum.neg.deniv, smoothed.cum.pos.deniv,
+        smoothed.cum.neg.deniv,  path.length)
+}
+print(elevation.stats(path.points.elev))
+plot(path.points.elev, type='l',xlab='Distance',ylab='Elevation', xaxt='n')
+points(running2(runmed(path.points.elev, k=smoothing.window+1), 
+    width=smoothing.window), pch='.', col='red')
+par(new=T) # create new graph to fix the horizontal axis 
+# FIXME: next line gives strange error like: 'ascii' codec can't decode byte 
+# 0xc3 in position 76: ordinal not in range(128) 
+# plot( x = c( 0, 5000 ), y = c(lowest, highest), yaxt = 'n', pch= '', xlab = '', ylab = '') 
+#... so we need to compute AGAIN some values... 
+plot( x = c( 0, sum(lengths.psp(path.psp))), y = c(min(path.points.elev), 
+    max(path.points.elev)), yaxt = 'n', pch= '', xlab = '', ylab = '') 
+})]]></Query>
+        <Help name=""/>
+        <Dialog>
+            <Widget id="1" label="Layer containing polyline(s):" type="VariableComboBox" default="SpatialLinesDataFrame"/>
+            <Widget id="2" label="Polyline number to profile:" type="LineEdit" default="1"/>
+            <!-- chosing e.g. '1' will take first polyline of the selected layer in: 
+            coordinates(|1|)[[|2|]] ; TODO: if there is an attribute called 'name' 
+            in the table of the polyline layer, propose the name from these names -->
+            <Widget id="3" label="Digital Elevation Model:" type="VariableComboBox" default="SpatialGridDataFrame"/>
+            <Widget id="4" label="Elevation sampling resolution (in projected unit):" type="LineEdit" default="1"/>
+            <!-- if DEM and polyline unit is meters, a value of 1 to 10 for e.g. ASTER data makes sense -->
+            <Widget id="5" label="Smoothing window:" type="LineEdit" default="50"/>
+            <Columns>
+            <Widget id="6" label="Advanced smoothing (only with gtools package)" type="CheckBox" default="true"/>
+            <Widget id="7" label="Draw on a new graphic device" type="CheckBox" default="true"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+</manageRTools>

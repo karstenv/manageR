@@ -1,0 +1,179 @@
+<?xml version="1.0"?>
+<manageRTools category="Statistics">
+    <RTool name="Descriptive statistics" subcategory= "Summary">
+        <Query><![CDATA[local({
+tmp <- data.frame(|1|)
+keep <- names(tmp)
+first <- TRUE
+for (i in 1:ncol(tmp)) {
+    x <- unlist(tmp[i])
+    if (!is.numeric(x)) { # Not a numeric vector!
+        Res <- list(median=NA, mean=NA, var=NA, stddev=NA, coefvar=NA,
+            min=NA, max=NA, sum=NA, range=NA, nas=NA, nulls=NA, count=NA)
+    } else {
+        Nas <- sum(as.numeric(is.na(x)))
+        x <- x[!is.na(x)]
+        Vals <- length(x)
+        Nulls <- sum(as.numeric(x==0))
+        Min <- min(x)
+        Max <- max(x)
+        Range <- Max-Min
+        Sum <- sum(x)
+        Median <- median(x)
+        Mean <- mean(x)
+        Var <- var(x)
+        StdDev <- sqrt(Var)
+        CoefVar <- StdDev/Mean
+        Res <- list(median=Median, mean=Mean, var=Var, stddev=StdDev, coefvar=CoefVar, 
+            min=Min, max=Max, sum=Sum, range=Range, nas=Nas, nulls=Nulls, count=Vals)
+    }
+    if (first) {
+        Out <- data.frame(Res)
+        first <- FALSE 
+    } else {
+        Out <- rbind(Out, Res)
+    }
+}
+row.names(Out) <- as.list(keep)
+Out
+})]]></Query>
+        <Help name="mean"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input data:" type="VariableListBox"/>
+            </Variables>
+        </Dialog>
+    </RTool>
+    <RTool name="Summary statistics"  subcategory= "Summary">
+        <Query><![CDATA[local({
+summary(|1|)
+})]]></Query>
+        <Help name="summary"/>
+        <Dialog>
+            <Widget id="1" label="Input data:" type="VariableComboBox"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Correlation matrix">
+        <Query><![CDATA[local({
+tmp <- data.frame(|1|)
+cor(tmp, use='|2|', method='|3|')
+})]]></Query>
+        <Help name="cor"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input data:" type="VariableListBox"/>
+            </Variables>
+            <Columns>
+                <Widget id="2" label="Treatment of missing values" type="RadioGroupBox"
+                    default="everything;all.obs;complete.obs;na.or.complete;pairwise.complete.obs"
+                    alternate="Everything (NAs are propagated);All observations (NAs produce error);Complete observations only;NA or complete observations only;Pairwise complete observations"/>
+                <Widget id="3" type="RadioGroupBox" label="Type of correlation" 
+                    default="pearson;spearman;kendall" alternate=
+                    "Pearson product-moment;Spearman rank-order;Kendall's tau"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Correlation test">
+        <Query><![CDATA[local({
+cor.test(x=|1|, y=|2|, alternative='|3|', method='|4|')
+})]]></Query>
+        <Help name="cor.test"/>
+        <Dialog>
+            <Variables name="Choose variables">
+                <Widget id="1" label="First variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Second variable:" type="VariableLineEdit"/>
+            </Variables>
+            <Columns>
+                <Widget id="3" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="two.sided;less;greater" alternate=
+                    "Two-sided;Correlation less than 0;Correlation greater than 0"/>
+                <Widget id="4" type="RadioGroupBox" label="Type of correlation" 
+                    default="pearson;spearman;kendall" alternate=
+                    "Pearson product-moment;Spearman rank-order;Kendall's tau"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Linear regression">
+        <Query><![CDATA[local({
+if (|3|) # should we include the intercept?
+summary.lm(lm(|1| ~ |2|))
+else
+summary.lm(lm(|1| ~ 0 + |2|))
+})]]></Query>
+        <Help name="lm"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Dependant variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Independent variables:" type="VariableListBox" separator="+"/>
+            </Variables>
+            <Widget id="3" label="Include intercept" type="CheckBox" default="true"/>
+        </Dialog>
+    </RTool>
+    <RTool name="One sample t-test">
+        <Query><![CDATA[local({
+t.test(|1|, alternative='|2|', mu=|3|, conf.level=|4|)
+})]]></Query>
+        <Help name="t.test"/>
+        <Dialog>
+            <Variables name="Choose variables">
+                <Widget id="1" label="Input variable:" type="VariableLineEdit"/>
+            </Variables>
+            <Columns>
+                <Widget id="2" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="two.sided;less;greater" alternate=
+                    "Two-sided;Difference less than 0;Difference greater than 0"/>
+                <Group name="Parameters">
+                    <Widget id="3" label="Value of the mean:" type="DoubleSpinBox" 
+                        default="0.00"/>
+                    <Widget id="4" label="Confidence level:" type="DoubleSpinBox" 
+                        default="0.95"/>
+                </Group>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Paired sample t-test">
+        <Query><![CDATA[local({
+t.test(x=|1|, y=|2|, alternative='|3|', conf.level=|4|, paired=TRUE)
+})]]></Query>
+        <Help name="t.test"/>
+        <Dialog>
+            <Variables name="Choose variables">
+                <Widget id="1" label="First variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Second variable:" type="VariableLineEdit"/>
+            </Variables>
+            <Columns>
+                <Widget id="3" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="two.sided;less;greater" alternate=
+                    "Two-sided;Difference less than 0;Difference greater than 0"/>
+                <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Two sample t-test">
+        <Query><![CDATA[local({
+t.test(x=|1|, y=|2|, alternative='|3|', conf.level=|4|)
+})]]></Query>
+        <Help name="t.test"/>
+        <Dialog>
+            <Variables name="Choose variables">
+                <Widget id="1" label="First variable:" type="VariableLineEdit"/>
+                <Widget id="2" label="Second variable:" type="VariableLineEdit"/>
+            </Variables>
+            <Columns>
+                <Widget id="3" type="RadioGroupBox" label="Alternative hypothesis" 
+                    default="two.sided;less;greater" alternate=
+                    "Two-sided;Difference less than 0;Difference greater than 0"/>
+                <Widget id="4" label="Confidence level:" type="DoubleSpinBox" default="0.95"/>
+            </Columns>
+        </Dialog>
+    </RTool>
+    <RTool name="Shapiro-Wilk normality test">
+        <Query><![CDATA[local({
+shapiro.test(|1|)
+})]]></Query>
+        <Help name="shapiro.test"/>
+        <Dialog>
+            <Widget id="1" label="Input variable:" type="VariableComboBox"/>
+        </Dialog>
+    </RTool>
+</manageRTools>

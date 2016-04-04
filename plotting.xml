@@ -1,0 +1,151 @@
+<manageRTools category="Plot">
+    <RTool name="Quick plot" icon="icons/default/gnome-fs-bookmark-missing.svg">
+        <Query><![CDATA[local({
+plot(x=|1|, type=|2|, |3|, |4|)        
+|5|    
+})]]></Query>
+        <Help name="plot.default"/>
+        <Widget id="1" label="Input values:" type="VariableLineBox"/>
+        <Widget id="2" label="Plot type:" type="PlotTypeBox"/>
+        <Page name="Options">
+            <Widget id="3" type="PlotOptionsBox" default="titles;box;axes;logscale;style;minmax"/>
+            <Widget id="4" label="Additional paramters:" type="AdditionalParametersBox"/>
+            <Widget id="5" label="Add grid" type="GridCheckBox" default="false"/>
+        </Page>
+    </RTool>
+    <RTool name="Scatterplot" icon="icons/default/plotting/custom-chart-scatter.svg">
+        <Query><![CDATA[local({
+plot(x=|1|, y=|2|, type='p', |3|, |4|)        
+if (|5|) { # Should we add a trend line?
+    tmp.fit <- lm(|2| ~ |1|)
+    abline(tmp.fit, lty='|6|')
+    }
+|7|    
+})]]></Query>
+        <Help name="plot"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="X values" type="VariableLineEdit"/>
+                <Widget id="2" label="Y values" type="VariableLineEdit"/>
+            </Variables>
+            <Group id="5" name="Add trend line" checkable="true" default="false">
+                <Widget id="6" label="Line type" type="LineStyleBox"/>
+            </Group>
+            <Page name="Options">
+                <Widget id="3" type="PlotOptionsBox" default="titles;box;axes;logscale;style;minmax"/>
+                <Widget id="4" label="Additional paramters" type="AdditionalParametersBox"/>
+                <Widget id="7" label="Add grid" type="GridCheckBox" default="false"/>
+            </Page>
+        </Dialog>
+    </RTool>
+    <RTool name="Histogram" icon="icons/default/plotting/custom-chart-histogram.svg">
+        <Query><![CDATA[local({
+hist(|1|, breaks='|2|', freq=|3|, |7|)
+if (|5|) { # should we add a probability distribution?
+    lines(density(|1|), lty='|6|')
+}
+})]]></Query>
+        <Help name="hist"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input values:" type="VariableLineEdit"/>
+            </Variables>
+            <Widget id="2" label="Break calculation:" type="ComboBox" default=
+               "Sturges;Scott;Freedman-Diaconis"/>
+            <Widget id="3" label="Plot as frequencies" type="CheckBox" default="true"/>
+<!--            <Page name="Options">-->
+<!--                <Widget id="4" type="PlotOptionsBox" default="box;titles"/>-->
+                <Group id="5" checkable="true" name="Add probability distribution" default="false">
+                    <Widget id="6" label="Line style" type="LineStyleBox"/>
+                </Group>
+                <Widget id="7" label="Additional parameters:" type="AdditionalParametersBox"/>
+<!--            </Page>-->
+        </Dialog>
+    </RTool>
+    <RTool name="Box-plot" icon="icons/default/plotting/custom-chart-box-plot.svg">
+        <Query><![CDATA[local({
+boxplot(|1|, varwidth=|2|, notch=|3|, outline=|4|, horizontal=|5|, |6|)
+})]]></Query>
+        <Help name="boxplot"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input values:" type="VariableListBox"/>
+            </Variables>
+            <Page name="Plot Options">
+                <Columns>
+                    <Widget id="2" label="Variable width boxes" type="CheckBox" default="false"/>
+                    <Widget id="3" label="Add box notches" type="CheckBox" default="false"/>
+                </Columns>
+                <Columns>
+                    <Widget id="4" label="Show outliers" type="CheckBox" default="true"/>
+                    <Widget id="5" label="Plot boxes horizontally" type="CheckBox" default="false"/>
+                </Columns>
+                <Widget id="6" type="PlotOptionsBox" default="titles"/>
+            </Page>
+        </Dialog>
+    </RTool>
+    <RTool name="Pie-chart" icon="icons/default/plotting/custom-chart-pie.svg">
+        <Query><![CDATA[local({
+pie(|1|, clockwise=|2|, |3|, |4|)
+})]]></Query>
+        <Help name="pie"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input values:" type="VariableLineEdit"/>
+            </Variables>
+            <Widget id="2" label="Clockwise" type="CheckBox" default="false"/>
+            <Widget id="3" type="PlotOptionsBox" default="titles"/>
+            <Widget id="4" label="Additional parameters:" type="AdditionalParametersBox"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Bar-graph" icon="icons/default/plotting/custom-chart-bar.svg">
+        <Query><![CDATA[local({
+barplot(|1|, horiz=|2|, |3|, |4|)
+})]]></Query>
+        <Help name="barplot"/>
+        <Dialog>
+            <Variables>
+                <Widget id="1" label="Input values:" type="VariableLineEdit"/>
+            </Variables>
+            <Widget id="2" label="Horizontal" type="CheckBox" default="false"/>
+            <Widget id="3" type="PlotOptionsBox" default="titles"/>
+            <Widget id="4" label="Additional parameters:" type="AdditionalParametersBox"/>
+        </Dialog>
+    </RTool>
+    <RTool name="Density plot" icon="icons/default/plotting/custom-chart-norm.svg">
+        <Query><![CDATA[local({
+plot(density(|1|, bw='|2|', adjust=|3|, kern='|4|', n=|5|, na.rm=|6|), |7|, |8|)
+if (|9|) { # Should we add a 'rug'?
+    rug(|1|, side=1, |10|, |11|)
+}
+})]]></Query>
+        <Help name="density"/>
+        <Dialog>
+            <Page name="Main">
+                <Rows>
+                    <Variables>
+                        <Widget id="1" label="Input values:" type="VariableLineEdit"/>
+                    </Variables>
+                    <Group name="Bandwidth">
+                        <Widget id="2" label="Bandwidth calculation:" type="ComboBox" default="nrd0;nrd;ucv;bcv;SJ-ste;SJ-dpi"/>
+                        <Widget id="3" label="Bandwidth adjustment:" type="SpinBox" default="1"/>
+                    </Group>
+                    <Widget id="4" label="Smoothing kernel:" type="ComboBox" default=
+                    "gaussian;rectangular;triangular;epanechnikov;biweight;cosine;optcosine"/>
+                    <Widget id="5" label="Resolution:" type="DoubleSpinBox" default="512.00"/>
+                </Rows>
+            </Page>
+            <Page name="Options">
+                <Rows>
+                    <Widget id="7" type="PlotOptionsBox" default="titles"/>
+                    <Group name="Add rug" id="9" checkable="true" default="false">
+                        <Widget id="10" label="Tick size:" type="DoubleSpinBox" default="0.03"/>
+                        <Widget id="11" label="Tick width:" type="DoubleSpinBox" default="0.50"/>
+                    </Group>
+                    <Widget id="6" label="Remove NA values" type="CheckBox" default="true"/>
+                    <Widget id="8" label="Additional parameters:" type="AdditionalParametersBox"/>
+                </Rows>
+            </Page>
+        </Dialog>
+    </RTool>
+</manageRTools>
